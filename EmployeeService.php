@@ -82,4 +82,50 @@ class EmployeeService {
             throw $e;
         }
     }
+    public function calculateInsurance() {
+        $insuranceData = [];
+        $calculate_sql = "SELECT emp_id, full_name, base_salary FROM employees";
+        $calculate_stmt = $this->conn->prepare($calculate_sql);
+        $calculate_stmt->execute();
+        while ($row = $calculate_stmt->fetch(PDO::FETCH_ASSOC)) {
+            $luong_co_ban = (float) $row['base_salary'];
+            $tong_bhxh = $luong_co_ban * 0.105;
+            $luong_nhan_vien = [
+                $row['emp_id'],
+                $row['full_name'],
+                $luong_co_ban,
+                $tong_bhxh
+            ];
+            $insuranceData[] = $luong_nhan_vien;
+        }
+        return $insuranceData;
+    }
+    public function  calculateAllTax() {
+        $allTaxData = [];
+        $tax_sql = "SELECT emp_id, full_name, actual_salary FROM employees";
+        $tax_stmt = $this->conn->prepare($tax_sql);
+        $tax_stmt->execute();
+        while ($row = $tax_stmt->fetch(PDO::FETCH_ASSOC)) {
+            $actual_salary = (float) $row['actual_salary'];
+            $TNTT = $actual_salary - 11000000;
+            $thue = 0;
+            if ($TNTT > 0) {
+                if ($TNTT <= 5000000) {
+                    $thue = $TNTT * 0.05;
+                } elseif ($TNTT <= 10000000) {
+                    $thue = (5000000 * 0.05) + (($TNTT - 5000000) * 0.10);
+                } else {
+                    $thue = (5000000 * 0.05) + (5000000 * 0.10) + (($TNTT - 10000000) * 0.15);
+                }
+            }
+            $taxRow = [
+                $row['emp_id'],
+                $row['full_name'],
+                $actual_salary,
+                $thue
+            ];
+            $allTaxData[] = $taxRow;
+        }
+        return $allTaxData;
+    }
 }
