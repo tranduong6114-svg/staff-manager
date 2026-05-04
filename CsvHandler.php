@@ -2,26 +2,39 @@
 class CsvHandler {
 
     public function readCsv($filePath) {
-
         if (!file_exists($filePath)) {
             throw new Exception("Khong tim thay file tai duong dan: $filePath");
         }
 
-        $data = [];
-        $handle = fopen($filePath, "r");
+        $csvData = [];
+        $filePointer = fopen($filePath, "r");
 
-        if ($handle) {
-            $is_header = true;
-            while (($row = fgetcsv($handle, 1000, ",")) !== FALSE) {
-                if ($is_header) {
-                    $is_header = false;
-                    continue;
+        if ($filePointer) {
+            $headers = fgetcsv($filePointer, 1000, ",");
+            $headers[0] = preg_replace('/[\xef\xbb\xbf]/', '', $headers[0]);
+            $expectedColumns = ['Mã nhân viên', 'Họ tên', 'email', 'Lương cơ bản', 'Lương', 'Sinh nhật', 'Phòng ban', 'Chức vụ'];
+            $columnIndexMap = [];
+
+            foreach ($expectedColumns as $colName) {
+                $index = array_search($colName, $headers);
+
+                if ($index === false) {
+                    throw new Exception("File CSV bị thiếu cột bắt buộc: " . $colName);
                 }
-                $data[] = $row;
+                $columnIndexMap[$colName] = $index;
             }
-            fclose($handle);
+
+            while (($row = fgetcsv($filePointer, 1000, ",")) !== FALSE) {
+                $mappedRow = [];
+                foreach ($expectedColumns as $colName) {
+                    $columnIndex = $columnIndexMap[$colName];
+                    $mappedRow[$colName] = $row[$columnIndex] ?? null;
+                }
+                $csvData[] = $mappedRow;
+            }
+            fclose($filePointer);
         }
-        return $data;
+        return $csvData;
     }
 
     public function exportCsv($data, $exportDir, $fileName, $header) {
@@ -30,14 +43,17 @@ class CsvHandler {
         }
 
         $filePath = $exportDir . '/' . $fileName ;
-        $handle = fopen($filePath, "w");
-        if ($handle) {
-            fputs($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, $header);
+        $filePointer = fopen($filePath, "w");
+
+        if ($filePointer) {
+            fputs($filePointer, "\xEF\xBB\xBF");
+            fputcsv($filePointer, $header);
+
             foreach ($data as $row) {
-                fputcsv($handle, $row);
+                fputcsv($filePointer, $row);
             }
-            fclose($handle);
+
+            fclose($filePointer);
             return "Xuat file thanh cong tai : " . $filePath;
         } else {
             throw new Exception("Khong the tao file tai duong dan: $fileName");

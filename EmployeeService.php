@@ -4,74 +4,104 @@ class EmployeeService {
     public function __construct($db) {
         $this->conn = $db;
     }
-    public function validateEmployee($ho_ten, $email, $luong_co_ban, $luong, $ngay_sinh) {
-        $errors = [];
-        if (strlen($ho_ten) > 255) {
-            $errors[] = "Ho ten vuot qua 255 ky tu";
+    private function getDepartmentMap() {
+        $stmt = $this->conn->prepare("SELECT id, name FROM departments");
+        $stmt->execute();
+        $map = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $key = mb_strtolower(trim($row['name']), 'UTF-8'); // Chuẩn hóa tên trong DB
+            $map[$key] = $row['id'];
         }
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return $map;
+    }
+    private function getPositionMap() {
+        $stmt = $this->conn->prepare("SELECT id, name FROM positions");
+        $stmt->execute();
+        $map = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $key = mb_strtolower(trim($row['name']), 'UTF-8');
+            $map[$key] = $row['id'];
+        }
+        return $map;
+    }
+    public function validateEmployee(Employee $emp) {
+        $errors = [];
+        if (strlen($emp->fullName) > 100) {
+            $errors[] = "Ho ten vuot qua 100 ky tu";
+        }
+        if (!filter_var($emp->email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = "Email khong hop le";
         }
-        if ($luong_co_ban > $luong) {
+        if ($emp->baseSalary > $emp->actualSalary) {
             $errors[] = "Luong co ban lon hon luong thuc nhan";
         }
-        $date = DateTime::createFromFormat('Y-m-d', $ngay_sinh);
-        if (!$date || $date->format('Y-m-d') !== $ngay_sinh) {
+        $date = DateTime::createFromFormat('Y-m-d', $emp->birthday);
+        if (!$date || $date->format('Y-m-d') !== $emp->birthday) {
             $errors[] = "Ngay sinh sai dinh dang";
+        }
+        if ($emp->departmentId === null) {
+            $errors[] = "Ten phong ban khong ton tai trong he thong";
+        }
+        if ($emp->positionId === null) {
+            $errors[] = "Ten chuc vu khong ton tai trong he thong";
         }
         return $errors;
     }
-    public function saveEmployee($ma_nv, $ho_ten, $email, $luong_co_ban, $luong, $ngay_sinh, $phong_ban, $chuc_vu) {
+    public function saveEmployee(Employee $emp) {
         $check_stmt = $this->conn->prepare("SELECT emp_id FROM employees WHERE emp_id = :emp_id");
-        $check_stmt->execute(['emp_id' => $ma_nv]);
+        $check_stmt->execute(['emp_id' => $emp->empID]);
         if ($check_stmt->rowCount() > 0) {
             $update_sql = "UPDATE employees SET full_name = :full_name, email = :email, base_salary = :base_salary, actual_salary = :actual_salary, birthday = :birthday, department_id = :department_id, position_id = :position_id WHERE emp_id = :emp_id";
             $update_stmt = $this->conn->prepare($update_sql);
             $update_stmt->execute([
-                'full_name' => $ho_ten,
-                'email' => $email,
-                'base_salary' => $luong_co_ban,
-                'actual_salary' => $luong,
-                'birthday' => $ngay_sinh,
-                'department_id' => $phong_ban,
-                'position_id' => $chuc_vu,
-                'emp_id' => $ma_nv
+                'full_name' => $emp->fullName,
+                'email' => $emp->email,
+                'base_salary' => $emp->baseSalary,
+                'actual_salary' => $emp->actualSalary,
+                'birthday' => $emp->birthday,
+                'department_id' => $emp->departmentId,
+                'position_id' => $emp->positionId,
+                'emp_id' => $emp->empID
             ]);
         } else {
             $insert_sql = "INSERT INTO employees (emp_id, full_name, email, base_salary, actual_salary, birthday, department_id, position_id) VALUES (:emp_id, :full_name, :email, :base_salary, :actual_salary, :birthday, :department_id, :position_id)";
             $insert_stmt = $this->conn->prepare($insert_sql);
             $insert_stmt->execute([
-                'emp_id' => $ma_nv,
-                'full_name' => $ho_ten,
-                'email' => $email,
-                'base_salary' => $luong_co_ban,
-                'actual_salary' => $luong,
-                'birthday' => $ngay_sinh,
-                'department_id' => $phong_ban,
-                'position_id' => $chuc_vu
+                'emp_id' => $emp->empID,
+                'full_name' => $emp->fullName,
+                'email' => $emp->email,
+                'base_salary' => $emp->baseSalary,
+                'actual_salary' => $emp->actualSalary,
+                'birthday' => $emp->birthday,
+                'department_id' => $emp->departmentId,
+                'position_id' => $emp->positionId,
             ]);
         }
     }
-    public function importEmployees($csvData) {
+    public function importEmployees($employees) {
+        $deptMap = $this->getDepartmentMap();
+        $posMap = $this->getPositionMap();
         $this->conn->beginTransaction();
         try {
-            foreach ($csvData as $row) {
-                $ma_nv = $row[0];
-                $ho_ten = $row[1];
-                $email = $row[2];
-                $luong_co_ban = (float) $row[3];
-                $luong = (float) $row[4];
-                $ngay_sinh = $row[5];
-                $phong_ban = (int) $row[6];
-                $chuc_vu = (int) $row[7];
+            $lineNumber = 2;
+            foreach ($employees as $emp) {
+                $csvDeptName = mb_strtolower(trim($emp->departmentName ?? ''), 'UTF-8');
+                $csvPosName  = mb_strtolower(trim($emp->positionName ?? ''), 'UTF-8');
 
-                $errors = $this->validateEmployee($ho_ten, $email, $luong_co_ban, $luong, $ngay_sinh);
+                $emp->departmentId = $deptMap[$csvDeptName] ?? null;
+                $emp->positionId   = $posMap[$csvPosName] ?? null;
+
+                $errors = $this->validateEmployee($emp);
                 if (!empty($errors)) {
-                    $chuoi_loi = implode(", ", $errors);
-                    throw new Exception("Loi tai ma NV " . $ma_nv . " : " . $chuoi_loi);
+                    $errorString = implode(", ", $errors);
+                    $maNvHienThi = empty($emp->empID) ? "Trong" : $emp->empID;
+
+                    throw new Exception("Loi tai dong so {$lineNumber} (Ma NV: {$maNvHienThi}) : {$errorString}");
                 }
 
-                $this->saveEmployee($ma_nv, $ho_ten, $email, $luong_co_ban, $luong, $ngay_sinh, $phong_ban, $chuc_vu);
+                $this->saveEmployee($emp);
+
+                $lineNumber++;
             }
 
             $this->conn->commit();
@@ -88,44 +118,63 @@ class EmployeeService {
         $calculate_stmt = $this->conn->prepare($calculate_sql);
         $calculate_stmt->execute();
         while ($row = $calculate_stmt->fetch(PDO::FETCH_ASSOC)) {
-            $luong_co_ban = (float) $row['base_salary'];
-            $tong_bhxh = $luong_co_ban * 0.105;
-            $luong_nhan_vien = [
+            $baseSalary = (float) $row['base_salary'];
+            $totalInsurance = $baseSalary * 0.105;
+            $insuranceRow = [
                 $row['emp_id'],
                 $row['full_name'],
-                $luong_co_ban,
-                $tong_bhxh
+                $baseSalary,
+                $totalInsurance
             ];
-            $insuranceData[] = $luong_nhan_vien;
+            $insuranceData[] = $insuranceRow;
         }
         return $insuranceData;
     }
-    public function  calculateAllTax() {
+    public function calculateAllTax() {
         $allTaxData = [];
-        $tax_sql = "SELECT emp_id, full_name, actual_salary FROM employees";
-        $tax_stmt = $this->conn->prepare($tax_sql);
-        $tax_stmt->execute();
-        while ($row = $tax_stmt->fetch(PDO::FETCH_ASSOC)) {
-            $actual_salary = (float) $row['actual_salary'];
-            $TNTT = $actual_salary - 11000000;
-            $thue = 0;
-            if ($TNTT > 0) {
-                if ($TNTT <= 5000000) {
-                    $thue = $TNTT * 0.05;
-                } elseif ($TNTT <= 10000000) {
-                    $thue = (5000000 * 0.05) + (($TNTT - 5000000) * 0.10);
+        $taxSql = "SELECT emp_id, full_name, actual_salary FROM employees";
+        $taxStmt = $this->conn->prepare($taxSql);
+        $taxStmt->execute();
+
+        while ($row = $taxStmt->fetch(PDO::FETCH_ASSOC)) {
+            $actualSalary = (float) $row['actual_salary'];
+
+            $taxableIncome = $actualSalary - 11000000;
+
+            $taxAmount = 0;
+
+            if ($taxableIncome > 0) {
+                if ($taxableIncome <= 5000000) {
+                    $taxAmount = $taxableIncome * 0.05;
+                } elseif ($taxableIncome <= 10000000) {
+                    $taxAmount = (5000000 * 0.05) + (($taxableIncome - 5000000) * 0.10);
                 } else {
-                    $thue = (5000000 * 0.05) + (5000000 * 0.10) + (($TNTT - 10000000) * 0.15);
+                    $taxAmount = (5000000 * 0.05) + (5000000 * 0.10) + (($taxableIncome - 10000000) * 0.15);
                 }
             }
+
             $taxRow = [
                 $row['emp_id'],
                 $row['full_name'],
-                $actual_salary,
-                $thue
+                $actualSalary,
+                $taxAmount
             ];
             $allTaxData[] = $taxRow;
         }
         return $allTaxData;
+    }
+    public function getAverageSalaryUnder30() {
+        $sql = "SELECT AVG(actual_salary) as avg_salary 
+                FROM employees 
+                WHERE TIMESTAMPDIFF(YEAR, birthday, CURDATE()) < 30";
+
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row && $row['avg_salary'] !== null) {
+            return (float) $row['avg_salary'];
+        }
+        return 0;
     }
 }
