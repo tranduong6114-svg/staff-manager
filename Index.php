@@ -18,33 +18,33 @@ try {
     }
 
     $employeeService = new EmployeeService($conn);
-    $result = $employeeService->importEmployees($employees);
+    $importStatus = $employeeService->importEmployees($employees);
 
-    echo $result;
+    echo $importStatus;
     echo "<br>";
 
     $insuranceData = $employeeService->calculateInsurance();
-    $headerBHXH = ['Ma Nhan vien', 'Ho ten', 'Luong co ban', 'Tong BHXH'];
-    $exportResult = $csvHandler->exportCsv($insuranceData, 'export', 'output_bhxh.csv', $headerBHXH);
+    $insuranceHeader = ['Ma Nhan vien', 'Ho ten', 'Luong co ban', 'Tong BHXH'];
 
-    echo $exportResult . "<br>";
+    $insuranceExportStatus = $csvHandler->exportCsv($insuranceData, 'export/output_bhxh.csv', $insuranceHeader);
+    echo $insuranceExportStatus . "<br>";
 
     $allTaxData = $employeeService->calculateAllTax();
-    $headerTTNCN = ['Ma Nhan vien', 'Ho ten', 'Luong', 'Thue phai dong'];
-    $exportTaxResult = $csvHandler->exportCsv($allTaxData, 'export', 'output_tax.csv', $headerTTNCN);
+    $taxHeader = ['Ma Nhan vien', 'Ho ten', 'Luong', 'Thue phai dong'];
 
-    echo "CSV 1: " . $exportTaxResult . "<br>";
+    $taxExportStatus = $csvHandler->exportCsv($allTaxData, 'export/output_tax.csv', $taxHeader);
+    echo "CSV 1: " . $taxExportStatus . "<br>";
 
     usort($allTaxData, function ($a, $b) {
         return $b[3] <=> $a[3];
     });
 
     $top3TaxData = array_slice($allTaxData, 0, 3);
-    $exportTaxTop3 = $csvHandler->exportCsv($top3TaxData, 'export', 'output_tax_top3.csv', $headerTTNCN);
-    echo "CSV 2: " . $exportTaxTop3 . "<br>";
+    $top3TaxExportStatus = $csvHandler->exportCsv($top3TaxData, 'export/output_tax_top3.csv', $taxHeader);
+    echo "CSV 2: " . $top3TaxExportStatus . "<br>";
 
     $avgSalary = $employeeService->getAverageSalaryUnder30();
-    echo "Muc luong trung binh cua nhan vien duoi 30 tuoi : " . number_format($avgSalary) . " VNĐ<br><br>";
+    echo "Muc luong trung binh cua nhan vien duoi 30 tuoi : " . number_format($avgSalary, 0, ',', '.') . " VNĐ<br><br>";
 
 } catch (Exception $e) {
     echo "Import that bai.<br> Loi : " . $e->getMessage();

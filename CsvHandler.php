@@ -17,7 +17,6 @@ class CsvHandler {
 
             foreach ($expectedColumns as $colName) {
                 $index = array_search($colName, $headers);
-
                 if ($index === false) {
                     throw new Exception("File CSV bị thiếu cột bắt buộc: " . $colName);
                 }
@@ -37,26 +36,24 @@ class CsvHandler {
         return $csvData;
     }
 
-    public function exportCsv($data, $exportDir, $fileName, $header) {
+    public function exportCsv($data, $filePath, $header) {
+        $exportDir = dirname($filePath);
         if (!is_dir($exportDir)) {
             mkdir($exportDir, 0777, true);
         }
 
-        $filePath = $exportDir . '/' . $fileName ;
         $filePointer = fopen($filePath, "w");
 
         if ($filePointer) {
             fputs($filePointer, "\xEF\xBB\xBF");
             fputcsv($filePointer, $header);
-
             foreach ($data as $row) {
                 fputcsv($filePointer, $row);
             }
-
             fclose($filePointer);
             return "Xuat file thanh cong tai : " . $filePath;
         } else {
-            throw new Exception("Khong the tao file tai duong dan: $fileName");
+            throw new Exception("Khong the tao file tai duong dan: $filePath");
         }
     }
 }

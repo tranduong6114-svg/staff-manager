@@ -26,8 +26,8 @@ class EmployeeService {
     }
     public function validateEmployee(Employee $emp) {
         $errors = [];
-        if (strlen($emp->fullName) > 100) {
-            $errors[] = "Ho ten vuot qua 100 ky tu";
+        if (mb_strlen($emp->fullName, 'UTF-8') > 255) {
+            $errors[] = "Ho ten vuot qua 255 ky tu";
         }
         if (!filter_var($emp->email, FILTER_VALIDATE_EMAIL)) {
             $errors[] = "Email khong hop le";
@@ -48,12 +48,14 @@ class EmployeeService {
         return $errors;
     }
     public function saveEmployee(Employee $emp) {
-        $check_stmt = $this->conn->prepare("SELECT emp_id FROM employees WHERE emp_id = :emp_id");
-        $check_stmt->execute(['emp_id' => $emp->empID]);
-        if ($check_stmt->rowCount() > 0) {
-            $update_sql = "UPDATE employees SET full_name = :full_name, email = :email, base_salary = :base_salary, actual_salary = :actual_salary, birthday = :birthday, department_id = :department_id, position_id = :position_id WHERE emp_id = :emp_id";
-            $update_stmt = $this->conn->prepare($update_sql);
-            $update_stmt->execute([
+        // Đổi $check_stmt -> $existingEmpStmt (Danh từ, chuẩn camelCase)
+        $existingEmpStmt = $this->conn->prepare("SELECT emp_id FROM employees WHERE emp_id = :emp_id");
+        $existingEmpStmt->execute(['emp_id' => $emp->empID]);
+
+        if ($existingEmpStmt->rowCount() > 0) {
+            $updateSql = "UPDATE employees SET full_name = :full_name, email = :email, base_salary = :base_salary, actual_salary = :actual_salary, birthday = :birthday, department_id = :department_id, position_id = :position_id WHERE emp_id = :emp_id";
+            $updateStmt = $this->conn->prepare($updateSql);
+            $updateStmt->execute([
                 'full_name' => $emp->fullName,
                 'email' => $emp->email,
                 'base_salary' => $emp->baseSalary,
@@ -64,9 +66,10 @@ class EmployeeService {
                 'emp_id' => $emp->empID
             ]);
         } else {
-            $insert_sql = "INSERT INTO employees (emp_id, full_name, email, base_salary, actual_salary, birthday, department_id, position_id) VALUES (:emp_id, :full_name, :email, :base_salary, :actual_salary, :birthday, :department_id, :position_id)";
-            $insert_stmt = $this->conn->prepare($insert_sql);
-            $insert_stmt->execute([
+            $insertSql = "INSERT INTO employees (emp_id, full_name, email, base_salary, actual_salary, birthday, department_id, position_id) VALUES (:emp_id, :full_name, :email, :base_salary, :actual_salary, :birthday, :department_id, :position_id)";
+            // Đổi $insert_stmt -> $insertStmt
+            $insertStmt = $this->conn->prepare($insertSql);
+            $insertStmt->execute([
                 'emp_id' => $emp->empID,
                 'full_name' => $emp->fullName,
                 'email' => $emp->email,
@@ -94,16 +97,14 @@ class EmployeeService {
                 $errors = $this->validateEmployee($emp);
                 if (!empty($errors)) {
                     $errorString = implode(", ", $errors);
-                    $maNvHienThi = empty($emp->empID) ? "Trong" : $emp->empID;
+                    // Đã đổi $maNvHienThi thành $displayEmpId
+                    $displayEmpId = empty($emp->empID) ? "Trong" : $emp->empID;
 
-                    throw new Exception("Loi tai dong so {$lineNumber} (Ma NV: {$maNvHienThi}) : {$errorString}");
+                    throw new Exception("Loi tai dong so {$lineNumber} (Ma NV: {$displayEmpId}) : {$errorString}");
                 }
-
                 $this->saveEmployee($emp);
-
                 $lineNumber++;
             }
-
             $this->conn->commit();
             return "Import du lieu thanh cong";
 
@@ -112,12 +113,14 @@ class EmployeeService {
             throw $e;
         }
     }
+
     public function calculateInsurance() {
         $insuranceData = [];
-        $calculate_sql = "SELECT emp_id, full_name, base_salary FROM employees";
-        $calculate_stmt = $this->conn->prepare($calculate_sql);
-        $calculate_stmt->execute();
-        while ($row = $calculate_stmt->fetch(PDO::FETCH_ASSOC)) {
+        $insuranceSql = "SELECT emp_id, full_name, base_salary FROM employees";
+        $insuranceStmt = $this->conn->prepare($insuranceSql);
+        $insuranceStmt->execute();
+
+        while ($row = $insuranceStmt->fetch(PDO::FETCH_ASSOC)) {
             $baseSalary = (float) $row['base_salary'];
             $totalInsurance = $baseSalary * 0.105;
             $insuranceRow = [
@@ -130,6 +133,7 @@ class EmployeeService {
         }
         return $insuranceData;
     }
+
     public function calculateAllTax() {
         $allTaxData = [];
         $taxSql = "SELECT emp_id, full_name, actual_salary FROM employees";
@@ -163,6 +167,7 @@ class EmployeeService {
         }
         return $allTaxData;
     }
+
     public function getAverageSalaryUnder30() {
         $sql = "SELECT AVG(actual_salary) as avg_salary 
                 FROM employees 
