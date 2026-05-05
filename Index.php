@@ -44,8 +44,12 @@ try {
     echo "CSV 2: " . $top3TaxExportStatus . "<br>";
 
     $avgSalary = $employeeService->getAverageSalaryUnder30();
-    echo "Muc luong trung binh cua nhan vien duoi 30 tuoi : " . number_format($avgSalary, 0, ',', '.') . " VNĐ<br><br>";
+    echo "Muc luong trung binh cua nhan vien duoi 30 tuoi : " . number_format($avgSalary, 0, ',', '.') . " VNĐ<br>";
 
+    $leadersData = $employeeService->getLeadersData();
+    $leadersHeader = ['Ma Nhan vien', 'Ho ten', 'Phong ban', 'Vi tri'];
+    $leadersExportStatus = $csvHandler->exportCsv($leadersData, 'export/output_leaders.csv', $leadersHeader);
+    echo "CSV 3: " . $leadersExportStatus . "<br>";
 } catch (Exception $e) {
     echo "Import that bai.<br> Loi : " . $e->getMessage();
 }
