@@ -9,7 +9,7 @@ class EmployeeService {
         $stmt->execute();
         $map = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $key = mb_strtolower(trim($row['name']), 'UTF-8'); // Chuẩn hóa tên trong DB
+            $key = mb_strtolower(trim($row['name']), 'UTF-8');
             $map[$key] = $row['id'];
         }
         return $map;
@@ -48,7 +48,6 @@ class EmployeeService {
         return $errors;
     }
     public function saveEmployee(Employee $emp) {
-        // Đổi $check_stmt -> $existingEmpStmt (Danh từ, chuẩn camelCase)
         $existingEmpStmt = $this->conn->prepare("SELECT emp_id FROM employees WHERE emp_id = :emp_id");
         $existingEmpStmt->execute(['emp_id' => $emp->empID]);
 
@@ -67,7 +66,6 @@ class EmployeeService {
             ]);
         } else {
             $insertSql = "INSERT INTO employees (emp_id, full_name, email, base_salary, actual_salary, birthday, department_id, position_id) VALUES (:emp_id, :full_name, :email, :base_salary, :actual_salary, :birthday, :department_id, :position_id)";
-            // Đổi $insert_stmt -> $insertStmt
             $insertStmt = $this->conn->prepare($insertSql);
             $insertStmt->execute([
                 'emp_id' => $emp->empID,
@@ -97,7 +95,6 @@ class EmployeeService {
                 $errors = $this->validateEmployee($emp);
                 if (!empty($errors)) {
                     $errorString = implode(", ", $errors);
-                    // Đã đổi $maNvHienThi thành $displayEmpId
                     $displayEmpId = empty($emp->empID) ? "Trong" : $emp->empID;
 
                     throw new Exception("Loi tai dong so {$lineNumber} (Ma NV: {$displayEmpId}) : {$errorString}");

@@ -18,7 +18,7 @@ class CsvHandler {
             foreach ($expectedColumns as $colName) {
                 $index = array_search($colName, $headers);
                 if ($index === false) {
-                    throw new Exception("File CSV bị thiếu cột bắt buộc: " . $colName);
+                    throw new Exception("File CSV bi thieu cot: " . $colName);
                 }
                 $columnIndexMap[$colName] = $index;
             }

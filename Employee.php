@@ -6,6 +6,7 @@ class Employee {
     public $baseSalary;
     public $actualSalary;
     public $birthday;
+
     public $departmentName;
     public $positionName;
     public $departmentId;

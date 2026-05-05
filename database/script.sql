@@ -10,7 +10,7 @@ CREATE TABLE positions (
 
 CREATE TABLE employees (
     emp_id VARCHAR(50) PRIMARY KEY,
-    full_name VARCHAR(100) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
     email VARCHAR(100) NOT NULL,
     base_salary BIGINT NOT NULL,
     actual_salary BIGINT NOT NULL,
