@@ -179,4 +179,25 @@ class EmployeeService {
         }
         return 0;
     }
+
+    public function getLeadersData() {
+        $sql = "SELECT e.emp_id, e.full_name, d.name AS department_name, p.name AS position_name
+                FROM employees e
+                INNER JOIN departments d ON e.department_id = d.id
+                INNER JOIN positions p ON e.position_id = p.id
+                WHERE p.name IN ('Trưởng phòng', 'Phó phòng')";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->execute();
+        $leadersData = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $leaderRow = [
+                $row['emp_id'],
+                $row['full_name'],
+                $row['department_name'],
+                $row['position_name']
+            ];
+            $leadersData[] = $leaderRow;
+        }
+        return $leadersData;
+    }
 }
